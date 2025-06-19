@@ -1,190 +1,165 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { dividedDifferences, newtonPolynomial } from './utils/newton';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ScatterController,
-} from 'chart.js';
+import 'katex/dist/katex.min.css';
 import type { ChartOptions } from 'chart.js';
-import { Scatter } from 'react-chartjs-2';
+import type { Punto, PuntoNuevo } from './types';
+import { FormPunto } from './components/FormPunto.tsx';
+import { ListadoPuntos } from './components/ListadoPuntos.tsx';
+import { InputEvaluacion } from './components/InputEvaluacion.tsx';
+import { Resultado } from './components/Resultado.tsx';
+import { Ecuacion } from './components/Ecuacion.tsx';
+import { Grafica } from './components/Grafica.tsx';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ScatterController
-);
+export default function AppInterpolacion() {
+  const [puntos, setPuntos] = useState<Punto[]>([]);
+  const [nuevoPunto, setNuevoPunto] = useState<PuntoNuevo>({ x: '', y: '' });
+  const [xEvaluar, setXEvaluar] = useState('');
+  const [resultado, setResultado] = useState<number | null>(null);
+  const [ecuacion, setEcuacion] = useState('');
 
-export default function InterpolationApp() {
-  const [points, setPoints] = useState<{ x: number; y: number; }[]>([]);
-  const [newPoint, setNewPoint] = useState({ x: '', y: '' });
-  const [xEval, setXEval] = useState('');
-  const [result, setResult] = useState<number | null>(null);
-
-  // Función para eliminar un punto por índice
-  const deletePoint = (idx: number) => {
-    setPoints(points.filter((_, i) => i !== idx));
-    setResult(null);
-  };
-
-  const addPoint = () => {
-    const x = parseFloat(newPoint.x);
-    const y = parseFloat(newPoint.y);
+  const agregarPunto = () => {
+    const x = parseFloat(nuevoPunto.x);
+    const y = parseFloat(nuevoPunto.y);
     if (!isNaN(x) && !isNaN(y)) {
-      setPoints([...points, { x, y }]);
-      setNewPoint({ x: '', y: '' });
-      setResult(null);
+      setPuntos([...puntos, { x, y }]);
+      setNuevoPunto({ x: '', y: '' });
+      setResultado(null);
+      setEcuacion('');
     }
   };
 
-  const computeInterpolation = () => {
-    const xs = points.map(p => p.x);
-    const ys = points.map(p => p.y);
-    const coefs = dividedDifferences(xs, ys);
-    const xe = parseFloat(xEval);
-    if (!isNaN(xe)) {
-      const yInterp = newtonPolynomial(coefs, xs, xe);
-      setResult(yInterp);
-    }
+  const eliminarPunto = (indice: number) => {
+    setPuntos(puntos.filter((_, i) => i !== indice));
+    setResultado(null);
+    setEcuacion('');
   };
 
-  const chartData = useMemo(() => {
-    if (points.length < 2) return null;
-    const xs = points.map(p => p.x);
-    const ys = points.map(p => p.y);
-    const coefs = dividedDifferences(xs, ys);
-
-    const lastCoef = coefs[coefs.length - 1];
-    const hue = Math.abs(lastCoef * 60) % 360; // Adjusted multiplier for more color variation
-    const lineColor = `hsl(${hue}, 70%, 45%)`; // Darker line for better contrast on light bg
-
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const step = (maxX - minX) / 100;
-    const curvePoints: { x: number; y: number }[] = [];
-    for (let x = minX; x <= maxX; x += step) {
-      const y = newtonPolynomial(coefs, xs, x);
-      curvePoints.push({ x, y });
+  const calcularInterpolacion = () => {
+    if (puntos.length < 2) {
+      alert('Se necesitan al menos 2 puntos.');
+      setResultado(null);
+      setEcuacion('');
+      return;
     }
+    const xs = puntos.map(p => p.x);
+    const ys = puntos.map(p => p.y);
+    const coefs = dividedDifferences(xs, ys);
+    const xe = parseFloat(xEvaluar);
+    if (isNaN(xe)) {
+      setResultado(null);
+      setEcuacion('');
+      return;
+    }
+    const yInterp = newtonPolynomial(coefs, xs, xe);
+    setResultado(yInterp);
 
-    return {
-      datasets: [
-        {
-          label: 'Interpolación',
-          data: curvePoints,
-          showLine: true,
-          fill: false,
-          borderColor: lineColor,
-          backgroundColor: lineColor, // Can be same as borderColor or a lighter shade
-          tension: 0.1 // Smoother curve
-        },
-        {
-          label: 'Puntos dados',
-          data: points,
-          showLine: false,
-          pointRadius: 6, // Slightly larger points
-          pointBackgroundColor: '#0D47A1', // Dark blue for points
-        },
-      ],
-    };
-  }, [points]);
+    // generar polinomio simplificado estándar
+    const n = coefs.length;
+    const base: number[][] = [ [1] ];
+    for (let i = 1; i < n; i++) {
+      const ant = base[i-1];
+      const pol = new Array(ant.length+1).fill(0);
+      const xi = xs[i-1];
+      ant.forEach((coef, j) => {
+        pol[j] += coef * -xi;
+        pol[j+1] += coef;
+      });
+      base.push(pol);
+    }
+    const coefPol = new Array(n).fill(0);
+    base.forEach((b, i) => b.forEach((c, j) => coefPol[j] += c * coefs[i] ));
+    let eq = '';
+    coefPol.reverse().forEach((c, idx) => {
+      const pot = n-1-idx;
+      const val = parseFloat(c.toFixed(2));
+      if (val === 0) return;
+      const signo = val > 0 ? (eq ? ' + ' : '') : ' - ';
+      const absV = Math.abs(val).toFixed(2);
+      eq += signo + (pot > 1 ? `${absV}x^${pot}` : pot === 1 ? `${absV}x` : absV);
+    });
+    setEcuacion(`P(x) = ${eq}`);
+  };
 
-  const options: ChartOptions<'scatter'> = {
-    scales: {
-      x: {
-        type: 'linear',
-        position: 'bottom',
-        title: { display: true, text: 'X', color: '#333' },
-        ticks: { color: '#555' },
-        grid: { color: 'rgba(0, 0, 0, 0.05)' }
-      },
-      y: {
-        title: { display: true, text: 'Y', color: '#333' },
-        ticks: { color: '#555' },
-        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+  // Generar ecuación automáticamente cuando cambian los puntos
+  useEffect(() => {
+    if (puntos.length < 2) {
+      setEcuacion('');
+      return;
+    }
+    const xs = puntos.map(p => p.x);
+    const ys = puntos.map(p => p.y);
+    const coefs = dividedDifferences(xs, ys);
+    const n = coefs.length;
+    // generar polinomio en forma estándar
+    const base: number[][] = [[1]];
+    for (let i = 1; i < n; i++) {
+      const ant = base[i - 1];
+      const pol = new Array(ant.length + 1).fill(0);
+      const xi = xs[i - 1];
+      ant.forEach((coef, j) => {
+        pol[j] += coef * -xi;
+        pol[j + 1] += coef;
+      });
+      base.push(pol);
+    }
+    const coefPol = new Array(n).fill(0);
+    base.forEach((b, i) => b.forEach((c, j) => (coefPol[j] += c * coefs[i])));
+    let eq = '';
+    coefPol
+      .slice()
+      .reverse()
+      .forEach((c, idx) => {
+        const pot = n - 1 - idx;
+        const val = parseFloat(c.toFixed(2));
+        if (val === 0) return;
+        const signo = val > 0 ? (eq ? ' + ' : '') : ' - ';
+        const absV = Math.abs(val).toFixed(2);
+        eq += signo + (pot > 1 ? `${absV}x^${pot}` : pot === 1 ? `${absV}x` : absV);
+      });
+    setEcuacion(`P(x) = ${eq}`);
+  }, [puntos]);
+
+  const datosGrafica = useMemo(() => {
+    const datasets = [];
+    if (puntos.length) {
+      const xs = puntos.map(p => p.x);
+      const ys = puntos.map(p => p.y);
+      const coefs = dividedDifferences(xs, ys);
+      // curva
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const paso = (maxX - minX)/100 || 0.1;
+      const curva = [];
+      for (let x = minX; x <= maxX; x += paso) {
+        const y = newtonPolynomial(coefs, xs, x);
+        if (!isNaN(y)) curva.push({ x, y });
       }
-    },
-    plugins: {
-      legend: { position: 'top', labels: { color: '#333' } },
-      title: { display: true, text: 'Interpolación de Newton', color: '#1A237E' }
+      const hue = Math.abs(coefs[coefs.length-1]*60)%360;
+      datasets.push({ type: 'line', label: 'Interpolación', data: curva, borderColor: `hsl(${hue},70%,45%)`, backgroundColor: 'transparent', borderWidth: 3, tension: 0.1, fill: false, pointRadius: 0, order: 0 });
+      datasets.push({ type: 'scatter', label: 'Puntos dados', data: puntos, backgroundColor: 'rgba(54,162,235,1)', borderColor: '#fff', borderWidth: 2, pointRadius: 6, showLine: false, order: 1 });
+      if (resultado !== null && !isNaN(parseFloat(xEvaluar))) {
+        datasets.push({ type: 'scatter', label: 'Punto evaluado', data: [{ x: parseFloat(xEvaluar), y: resultado }], backgroundColor: 'rgba(0,200,0,1)', borderColor: '#fff', borderWidth: 2, pointRadius: 8, pointStyle: 'triangle', order: 2 });
+      }
     }
-  };
+    return { datasets };
+  }, [puntos, xEvaluar, resultado]);
+
+  const opciones: ChartOptions<'scatter'> = { scales: { x: { type: 'linear', position: 'bottom', title: { display: true, text: 'X' } }, y: { title: { display: true, text: 'Y' } } }, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Interpolación de Newton' } }, responsive: true, maintainAspectRatio: false };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-sky-100 to-indigo-200 p-4 md:p-8 font-sans text-gray-800">
-      <h2 className="text-3xl md:text-4xl font-bold text-center text-indigo-700 mb-8">Interpolación y Gráfica con Newton</h2>
-
-      <div className="bg-white shadow-xl rounded-lg p-6 mb-6 mx-auto w-full max-w-2xl">
-        <h3 className="text-xl md:text-2xl font-semibold mb-4 text-indigo-600">Puntos actuales</h3>
-        <ul className="list-disc list-inside mb-4 space-y-1">
-          {points.map((p, i) => (
-            <li key={i} className="flex justify-between items-center">
-              <span>({p.x}, {p.y})</span>
-              <button
-                onClick={() => deletePoint(i)}
-                className="text-red-500 hover:text-red-700 font-bold"
-                aria-label="Eliminar punto"
-              >✕</button>
-            </li>
-          ))}
-        </ul>
-        <div className="flex flex-wrap gap-3 items-center">
-          <input
-            type="number"
-            className="border border-gray-300 rounded p-2 w-24 sm:w-32 text-gray-700 focus:ring-2 focus:ring-indigo-400 outline-none"
-            placeholder="X"
-            value={newPoint.x}
-            onChange={e => setNewPoint({ ...newPoint, x: e.target.value })}
-          />
-          <input
-            type="number"
-            className="border border-gray-300 rounded p-2 w-24 sm:w-32 text-gray-700 focus:ring-2 focus:ring-indigo-400 outline-none"
-            placeholder="Y"
-            value={newPoint.y}
-            onChange={e => setNewPoint({ ...newPoint, y: e.target.value })}
-          />
-          <button
-            onClick={addPoint}
-            className="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-50"
-          >Añadir punto</button>
-        </div>
+    <div className="min-h-screen w-full bg-gradient-to-br from-sky-100 to-indigo-200 p-4 md:p-8 text-gray-800">
+      <h2 className="text-3xl font-bold text-center text-indigo-700 mb-8">Interpolación de Newton</h2>
+      <div className="bg-white shadow-xl rounded-lg p-6 mb-6 mx-auto max-w-2xl">
+        <ListadoPuntos puntos={puntos} onEliminar={eliminarPunto} />
+        <FormPunto punto={nuevoPunto} onChange={(campo, val) => setNuevoPunto({ ...nuevoPunto, [campo]: val })} onAgregar={agregarPunto} />
       </div>
-
-      <div className="flex flex-wrap gap-3 items-center justify-center mb-6 mx-auto w-full max-w-2xl">
-        <input
-          type="number"
-          className="border border-gray-300 rounded p-2 w-32 sm:w-48 text-gray-700 focus:ring-2 focus:ring-indigo-400 outline-none"
-          placeholder="Evaluar en x = ..."
-          value={xEval}
-          onChange={e => setXEval(e.target.value)}
-        />
-        <button
-          onClick={computeInterpolation}
-          className="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-50"
-        >Calcular</button>
+      {/* Ecuación automática tras ingresar puntos */}
+      <Ecuacion ecuacion={ecuacion} />
+      <div className="flex flex-wrap gap-3 items-center justify-center mt-6 mb-6 mx-auto max-w-2xl">
+        <InputEvaluacion xEval={xEvaluar} onChange={setXEvaluar} onCalcular={calcularInterpolacion} />
       </div>
-
-      {result !== null && (
-        <div className="mt-4 bg-teal-500 text-white p-4 rounded text-center font-medium mx-auto w-full max-w-2xl shadow-lg">
-          <strong>Resultado:</strong> P({xEval}) = {result}
-        </div>
-      )}
-
-      {chartData && (
-        <div className="mt-8 w-full h-64 md:h-[32rem] bg-white/80 backdrop-blur-md shadow-xl rounded-lg p-4 mx-auto max-w-4xl">
-          <Scatter data={chartData} options={options} />
-        </div>
-      )}
+      <Resultado resultado={resultado} xEval={xEvaluar} />
+      <Grafica chartData={datosGrafica} opciones={opciones} />
     </div>
   );
 }
