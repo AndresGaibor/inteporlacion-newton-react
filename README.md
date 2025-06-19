@@ -1,55 +1,68 @@
-# React + TypeScript + Vite
+# Interpolación de Newton (React + TypeScript + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Esta **aplicación web** interactiva implementa el **método de interpolación de Newton** para la asignatura de Métodos Numéricos de Ingeniería de Software.
 
-Currently, two official plugins are available:
+## Características
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Añadir y eliminar puntos 
+- Generación automática de la **ecuación polinómica** en forma estándar (coeficientes agrupados y redondeados) y renderizada en **LaTeX** con _react-katex_.
+- Visualización de:
+  - Puntos originales (azul).
+  - Curva de interpolación (línea roja robusta).
+  - Punto evaluado opcional (triángulo verde).
+- Gráfica interactiva usando **Chart.js** y **react-chartjs-2**.
+- Diseño responsivo y moderno con **Tailwind CSS**.
 
-## Expanding the ESLint configuration
+## Estructura del proyecto
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```
+src/
+├─ components/       # Componentes React en español
+├─ utils/            # Funciones matemáticas (diferencias divididas y evaluación)
+├─ types.ts          # Tipos comunes (Punto, PuntoNuevo)
+├─ InterpolationApp.tsx # Componente principal refactorizado
+├─ assets/           # Imágenes y recursos estáticos
+└─ ...
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Tecnologías utilizadas
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- React 18 + TypeScript
+- Vite (bundler moderno)
+- Tailwind CSS (estilos)
+- Chart.js + react-chartjs-2 (gráficas)
+- react-katex + KaTeX (renderizado de LaTeX)
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
-# inteporlacion-newton-react
+## Instalación y ejecución
+
+```bash
+# Clonar el repositorio
+git clone <url-del-proyecto>
+cd interpolacion-newton
+
+# Instalar dependencias
+npm install
+
+# Levantar servidor de desarrollo
+npm run dev
+
+# Generar versión de producción
+npm run build
+``` 
+
+Al ejecutar, abre tu navegador en http://localhost:5173 para interactuar con la aplicación.
+
+## Uso
+
+1. **Añadir puntos** ingresando coordenadas X e Y y pulsando "Añadir punto".
+2. La **ecuación** de interpolación aparece automáticamente.
+3. Introducir un valor de X en el campo de evaluación y pulsar "Calcular" para obtener el valor P(x) y visualizarlo en la gráfica.
+4. Eliminar puntos con el botón "✕" en la lista de puntos actuales.
+
+## Créditos
+
+Desarrollado para la clase de Métodos Numéricos de Software en junio de 2025.
+
+---
+
+*Repositorio de ejemplo para prácticas de interpolación polinómica.*
